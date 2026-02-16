@@ -1,0 +1,18 @@
+image: node:20
+
+stages:
+  - test
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - npm install
+
+test:
+  stage: test
+  script:
+    - npm run test
+  only:
+    - lab1
