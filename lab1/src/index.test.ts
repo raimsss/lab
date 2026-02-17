@@ -1,73 +1,59 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createUser,
-  createBook,
-  calculateArea,
-  getStatusColor,
-  capitalizeFirst,
-  trimAndFormat,
-  getFirstElement,
-  findById
+  createUser, createBook, calculateArea, getStatusColor,
+  capitalizeFirst, trimAndFormat, getFirstElement, findById
 } from './index'
 
+// Задание 1: User
 describe('User', () => {
   it('creates user with default isActive', () => {
-    const user = createUser(1, 'John')
-    expect(user.isActive).toBe(true)
+    expect(createUser(1, 'John').isActive).toBe(true)
   })
 })
 
+// Задание 2: Book
 describe('Book', () => {
   it('creates book without year', () => {
-    const book = createBook({
-      title: 'Test',
-      author: 'Author',
-      genre: 'fiction'
-    })
-    expect(book.year).toBeUndefined()
+    expect(createBook({ title: 'Test', author: 'Author', genre: 'fiction' }).year).toBeUndefined()
   })
 })
 
+// Задание 3: calculateArea
 describe('calculateArea', () => {
-  it('calculates circle area', () => {
-    const area = calculateArea('circle', 2)
-    expect(area).toBeCloseTo(12.566, 2)
-  })
-
-  it('calculates square area', () => {
+  it('calculates circle and square areas', () => {
+    expect(calculateArea('circle', 2)).toBeCloseTo(12.566, 2)
     expect(calculateArea('square', 4)).toBe(16)
   })
 })
 
+// Задание 4: Status
 describe('Status', () => {
-  it('returns correct color', () => {
+  it('returns correct colors', () => {
     expect(getStatusColor('active')).toBe('green')
+    expect(getStatusColor('inactive')).toBe('gray')
+    expect(getStatusColor('new')).toBe('blue')
   })
 })
 
+// Задание 5: StringFormatter
 describe('StringFormatter', () => {
-  it('capitalizes first letter', () => {
+  it('formats strings correctly', () => {
     expect(capitalizeFirst('hello')).toBe('Hello')
-  })
-
-  it('trims and uppercase', () => {
     expect(trimAndFormat('  hello  ', true)).toBe('HELLO')
   })
 })
 
+// Задание 6: getFirstElement
 describe('getFirstElement', () => {
-  it('returns first element', () => {
+  it('returns first element or undefined', () => {
     expect(getFirstElement([1, 2, 3])).toBe(1)
-  })
-
-  it('returns undefined if empty', () => {
     expect(getFirstElement([])).toBeUndefined()
   })
 })
 
+// Задание 7: findById
 describe('findById', () => {
   it('finds object by id', () => {
-    const items = [{ id: 1, name: 'A' }]
-    expect(findById(items, 1)).toEqual({ id: 1, name: 'A' })
+    expect(findById([{ id: 1, name: 'A' }], 1)).toEqual({ id: 1, name: 'A' })
   })
 })
