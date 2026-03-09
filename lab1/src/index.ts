@@ -1,4 +1,4 @@
-// 1. User
+import { readFile, writeFile } from 'node:fs/promises';
 
 export interface User {
   id: number
@@ -21,8 +21,6 @@ export function createUser(
   }
 }
 
-// 2. Book
-
 export type Genre = 'fiction' | 'non-fiction'
 
 export interface Book {
@@ -35,8 +33,6 @@ export interface Book {
 export function createBook(book: Book): Book {
   return book
 }
-
-// 3. calculateArea (перегрузка)
 
 export function calculateArea(shape: 'circle', radius: number): number
 export function calculateArea(shape: 'square', side: number): number
@@ -51,8 +47,6 @@ export function calculateArea(
   }
 }
 
-// 4. Status
-
 export type Status = 'active' | 'inactive' | 'new'
 
 export function getStatusColor(status: Status): string {
@@ -65,8 +59,6 @@ export function getStatusColor(status: Status): string {
       return 'blue'
   }
 }
-
-// 5. StringFormatter
 
 export type StringFormatter = (
   str: string,
@@ -90,13 +82,9 @@ export const trimAndFormat: StringFormatter = (
   return uppercase ? trimmed.toUpperCase() : trimmed
 }
 
-// 6. getFirstElement
-
 export function getFirstElement<T>(arr: T[]): T | undefined {
   return arr.length > 0 ? arr[0] : undefined
 }
-
-// 7. findById
 
 export interface HasId {
   id: number
@@ -109,11 +97,52 @@ export function findById<T extends HasId>(
   return items.find(item => item.id === id)
 }
 
+export function csvToJSON(input: string[], delimiter: string): object[] {
+  if (input.length === 0) {
+    return [];
+  }
+
+  const headers = input[0].split(delimiter);
+  const result: object[] = [];
+
+  for (let i = 1; i < input.length; i++) {
+    const values = input[i].split(delimiter);
+
+    if (values.length !== headers.length) {
+      throw new Error(
+        `Несоответствие количества столбцов в строке ${i + 1}. ` +
+        `Ожидалось: ${headers.length}, получено: ${values.length}`
+      );
+    }
+
+    const rowObject: Record<string, string> = {};
+    for (let j = 0; j < headers.length; j++) {
+      rowObject[headers[j].trim()] = values[j].trim();
+    }
+    result.push(rowObject);
+  }
+
+  return result;
+}
+
+export async function formatCSVFileToJSONFile(
+  inputFile: string,
+  outputFile: string,
+  delimiter: string
+): Promise<void> {
+  try {
+    const fileContent = await readFile(inputFile, { encoding: 'utf-8' });
+    const lines = fileContent.split('\n').filter(line => line.trim() !== '');
+    const jsonData = csvToJSON(lines, delimiter);
+    await writeFile(outputFile, JSON.stringify(jsonData, null, 2), { encoding: 'utf-8' });
+  } catch (error) {
+    throw new Error(`Ошибка при обработке файла: ${error}`);
+  }
+}
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('\n=== ДЕМОНСТРАЦИЯ РАБОТЫ ФУНКЦИЙ ===\n')
-  
-  // 1. Демонстрация User
+
   console.log('1. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ:')
   const user1 = createUser(1, 'Иван')
   const user2 = createUser(2, 'Мария', 'maria@example.com', false)
@@ -121,7 +150,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('  user2 (isActive = false):', user2)
   console.log()
 
-  // 2. Демонстрация Book
   console.log('2. СОЗДАНИЕ КНИГИ:')
   const book1 = createBook({
     title: 'Война и мир',
@@ -138,7 +166,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('  book2 (с годом):', book2)
   console.log()
 
-  // 3. Демонстрация calculateArea
   console.log('3. ВЫЧИСЛЕНИЕ ПЛОЩАДИ:')
   const circleArea = calculateArea('circle', 5)
   const squareArea = calculateArea('square', 4)
@@ -146,14 +173,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  Площадь квадрата (сторона 4): ${squareArea}`)
   console.log()
 
-  // 4. Демонстрация getStatusColor
   console.log('4. ЦВЕТА СТАТУСОВ:')
   console.log(`  active -> ${getStatusColor('active')}`)
   console.log(`  inactive -> ${getStatusColor('inactive')}`)
   console.log(`  new -> ${getStatusColor('new')}`)
   console.log()
 
-  // 5. Демонстрация StringFormatter
   console.log('5. ФОРМАТИРОВАНИЕ СТРОК:')
   const testStr = '  привет мир  '
   console.log(`  Исходная строка: "${testStr}"`)
@@ -162,7 +187,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  trimAndFormat + uppercase: "${trimAndFormat(testStr, true)}"`)
   console.log()
 
-  // 6. Демонстрация getFirstElement
   console.log('6. ПЕРВЫЙ ЭЛЕМЕНТ МАССИВА:')
   const numbers = [10, 20, 30, 40, 50]
   const emptyArray: number[] = []
@@ -170,7 +194,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log(`  Пустой массив -> первый элемент: ${getFirstElement(emptyArray)}`)
   console.log()
 
-  // 7. Демонстрация findById
   console.log('7. ПОИСК ПО ID:')
   const items = [
     { id: 1, name: 'Товар 1', price: 100 },
@@ -184,22 +207,15 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   console.log('  Поиск id=5:', notFoundItem)
   console.log()
 
-  // 8. Дополнительные примеры
   console.log('8. ДОПОЛНИТЕЛЬНЫЕ ПРИМЕРЫ:')
-  
-  // Несколько пользователей
   const users = [
     createUser(1, 'Анна', 'anna@mail.com'),
     createUser(2, 'Петр', 'petr@mail.com', false),
     createUser(3, 'Елена')
   ]
   console.log('  Все пользователи:', users)
-  
-  // Активные пользователи
   const activeUsers = users.filter(user => user.isActive)
   console.log('  Активные пользователи:', activeUsers)
-  
-  // Книги по жанрам
   const fictionBook = createBook({
     title: 'Преступление и наказание',
     author: 'Достоевский',
@@ -207,6 +223,24 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     year: 1866
   })
   console.log('  Книга в жанре fiction:', fictionBook)
-  
+
+  console.log('\n=== ДЕМОНСТРАЦИЯ НОВЫХ ФУНКЦИЙ LAB3 ===\n')
+
+  console.log('1. csvToJSON:')
+  const csvData = ["p1;p2;p3;p4", "1;A;b;c", "2;B;v;d"]
+  const jsonResult = csvToJSON(csvData, ';')
+  console.log('  Входные данные:', csvData)
+  console.log('  Результат:', jsonResult)
+  console.log()
+
+  console.log('2. csvToJSON (ошибка):')
+  try {
+    const badCsvData = ["p1;p2;p3", "1;A;b;c"]
+    csvToJSON(badCsvData, ';')
+  } catch (e: any) {
+    console.log('  Ошибка поймана:', e.message)
+  }
+  console.log()
+
   console.log('\n=== КОНЕЦ ДЕМОНСТРАЦИИ ===\n')
 }

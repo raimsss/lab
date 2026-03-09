@@ -16,3 +16,4 @@ test:
     - npm run test
   only:
     - lab1
+    - lab3
