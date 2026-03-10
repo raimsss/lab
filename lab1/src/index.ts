@@ -1,10 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 export interface User {
-  id: number
-  name: string
-  email?: string
-  isActive: boolean
+  id: number;
+  name: string;
+  email?: string;
+  isActive: boolean;
 }
 
 export function createUser(
@@ -18,83 +18,83 @@ export function createUser(
     name,
     email,
     isActive
-  }
+  };
 }
 
-export type Genre = 'fiction' | 'non-fiction'
+export type Genre = 'fiction' | 'non-fiction';
 
 export interface Book {
-  title: string
-  author: string
-  year?: number
-  genre: Genre
+  title: string;
+  author: string;
+  year?: number;
+  genre: Genre;
 }
 
 export function createBook(book: Book): Book {
-  return book
+  return book;
 }
 
-export function calculateArea(shape: 'circle', radius: number): number
-export function calculateArea(shape: 'square', side: number): number
+export function calculateArea(shape: 'circle', radius: number): number;
+export function calculateArea(shape: 'square', side: number): number;
 export function calculateArea(
   shape: 'circle' | 'square',
   value: number
 ): number {
   if (shape === 'circle') {
-    return Math.PI * value * value
+    return Math.PI * value * value;
   } else {
-    return value * value
+    return value * value;
   }
 }
 
-export type Status = 'active' | 'inactive' | 'new'
+export type Status = 'active' | 'inactive' | 'new';
 
 export function getStatusColor(status: Status): string {
   switch (status) {
     case 'active':
-      return 'green'
+      return 'green';
     case 'inactive':
-      return 'gray'
+      return 'gray';
     case 'new':
-      return 'blue'
+      return 'blue';
   }
 }
 
 export type StringFormatter = (
   str: string,
   uppercase?: boolean
-) => string
+) => string;
 
 export const capitalizeFirst: StringFormatter = (
   str,
   uppercase = false
 ) => {
-  if (!str) return str
-  const result = str[0].toUpperCase() + str.slice(1)
-  return uppercase ? result.toUpperCase() : result
-}
+  if (!str) return str;
+  const result = str[0].toUpperCase() + str.slice(1);
+  return uppercase ? result.toUpperCase() : result;
+};
 
 export const trimAndFormat: StringFormatter = (
   str,
   uppercase = false
 ) => {
-  const trimmed = str.trim()
-  return uppercase ? trimmed.toUpperCase() : trimmed
-}
+  const trimmed = str.trim();
+  return uppercase ? trimmed.toUpperCase() : trimmed;
+};
 
 export function getFirstElement<T>(arr: T[]): T | undefined {
-  return arr.length > 0 ? arr[0] : undefined
+  return arr.length > 0 ? arr[0] : undefined;
 }
 
 export interface HasId {
-  id: number
+  id: number;
 }
 
 export function findById<T extends HasId>(
   items: T[],
   id: number
 ): T | undefined {
-  return items.find(item => item.id === id)
+  return items.find(item => item.id === id);
 }
 
 export function csvToJSON(input: string[], delimiter: string): object[] {
@@ -142,34 +142,80 @@ export async function formatCSVFileToJSONFile(
 
 export type Transform<T> = (data: T[]) => T[];
 
-export type Where<T> = <K extends keyof T>(key: K, value: T[K]) => Transform<T>;
-
-export type Sort<T> = <K extends keyof T>(key: K) => Transform<T>;
-
 export type Group<T, K extends keyof T> = {
   key: T[K];
   items: T[];
 };
 
-export type GroupBy<T> = <K extends keyof T>(key: K) => Transform<Group<T, K>>;
+export type WhereStep<T> = <K extends keyof T>(key: K, value: T[K]) => Transform<T>;
 
-export type GroupTransform<T, K extends keyof T> = (groups: Group<T, K>[]) => Group<T, K>[];
+export type GroupByStep<T> = <K extends keyof T>(key: K) => Transform<Group<T, K>>;
 
-export type Having<T> = <K extends keyof T>(
+export type HavingStep<T> = <K extends keyof T>(
   predicate: (group: Group<T, K>) => boolean
-) => GroupTransform<T, K>;
+) => (groups: Group<T, K>[]) => Group<T, K>[];
 
-export function query<T>(...steps: Array<Transform<T> | GroupTransform<T, any>>): Transform<T> {
+export type SortStep<T> = <K extends keyof T>(key: K) => Transform<T>;
+
+export type AnyOperation<T> =
+  | ReturnType<WhereStep<T>>
+  | ReturnType<GroupByStep<T>>
+  | ReturnType<HavingStep<T>>
+  | ReturnType<SortStep<T>>;
+
+type Phase1<T> = WhereStep<T>;
+type Phase2<T> = GroupByStep<T>;
+type Phase3<T> = HavingStep<T>;
+type Phase4<T> = SortStep<T>;
+
+type IsNever<T> = [T] extends [never] ? true : false;
+
+type LastElement<T extends any[]> = T extends [...infer _, infer L] ? L : never;
+
+type CheckPhaseOrder<T, Ops extends any[]> =
+  Ops extends [] ? true :
+  Ops extends [infer First] ?
+    First extends Phase1<T> ? true :
+    First extends Phase2<T> ? true :
+    First extends Phase3<T> ? true :
+    First extends Phase4<T> ? true : false :
+  Ops extends [infer First, ...infer Rest] ?
+    First extends Phase1<T> ?
+      Rest extends [] ? true :
+      LastElement<Rest> extends Phase1<T> ? CheckPhaseOrder<T, Rest> :
+      LastElement<Rest> extends Phase2<T> ? CheckPhaseOrder<T, Rest> :
+      LastElement<Rest> extends Phase3<T> ? CheckPhaseOrder<T, Rest> :
+      LastElement<Rest> extends Phase4<T> ? CheckPhaseOrder<T, Rest> : false :
+    First extends Phase2<T> ?
+      IsNever<Extract<LastElement<Rest>, Phase1<T>>> extends true ?
+        CheckPhaseOrder<T, Rest> : false :
+    First extends Phase3<T> ?
+      IsNever<Extract<LastElement<Rest>, Phase1<T> | Phase2<T>>> extends true ?
+        CheckPhaseOrder<T, Rest> : false :
+    First extends Phase4<T> ?
+      IsNever<Extract<LastElement<Rest>, Phase1<T> | Phase2<T> | Phase3<T>>> extends true ?
+        CheckPhaseOrder<T, Rest> : false :
+    false : false;
+
+interface QueryBuilder<T> {
+  <
+    Ops extends any[],
+  >(
+    ...steps: Ops & (CheckPhaseOrder<T, Ops> extends true ? Ops : never)
+  ): Transform<T>;
+}
+
+export const query: QueryBuilder<any> = function<T>(...steps: AnyOperation<T>[]): Transform<T> {
   return (data: T[]): T[] => {
     return steps.reduce((acc, step) => step(acc as any), data as any) as T[];
   };
-}
+};
 
-export const where: Where<any> = (key, value) => (data) => {
+export const where: WhereStep<any> = (key, value) => (data) => {
   return data.filter((item) => item[key] === value);
 };
 
-export const sort: Sort<any> = (key) => (data) => {
+export const sort: SortStep<any> = (key) => (data) => {
   return [...data].sort((a, b) => {
     const av = a[key];
     const bv = b[key];
@@ -179,7 +225,7 @@ export const sort: Sort<any> = (key) => (data) => {
   });
 };
 
-export const groupBy: GroupBy<any> = (key) => (data) => {
+export const groupBy: GroupByStep<any> = (key) => (data) => {
   const groups: Record<string, Group<any, any>> = {};
 
   for (const item of data) {
@@ -193,6 +239,6 @@ export const groupBy: GroupBy<any> = (key) => (data) => {
   return Object.values(groups);
 };
 
-export const having: Having<any> = (predicate) => (groups) => {
+export const having: HavingStep<any> = (predicate) => (groups) => {
   return groups.filter(predicate);
 };

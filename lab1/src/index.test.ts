@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, expectTypeOf } from 'vitest';
 import {
   createUser,
   createBook,
@@ -15,109 +15,115 @@ import {
   groupBy,
   having,
   query,
-} from './index'
+  type Transform,
+  type Group,
+  type WhereStep,
+  type GroupByStep,
+  type HavingStep,
+  type SortStep,
+} from './index';
 
 describe('User', () => {
   it('creates user with default isActive', () => {
-    expect(createUser(1, 'John').isActive).toBe(true)
-  })
-})
+    expect(createUser(1, 'John').isActive).toBe(true);
+  });
+});
 
 describe('Book', () => {
   it('creates book without year', () => {
-    expect(createBook({ title: 'Test', author: 'Author', genre: 'fiction' }).year).toBeUndefined()
-  })
-})
+    expect(createBook({ title: 'Test', author: 'Author', genre: 'fiction' }).year).toBeUndefined();
+  });
+});
 
 describe('calculateArea', () => {
   it('calculates circle and square areas', () => {
-    expect(calculateArea('circle', 2)).toBeCloseTo(12.566, 2)
-    expect(calculateArea('square', 4)).toBe(16)
-  })
-})
+    expect(calculateArea('circle', 2)).toBeCloseTo(12.566, 2);
+    expect(calculateArea('square', 4)).toBe(16);
+  });
+});
 
 describe('Status', () => {
   it('returns correct colors', () => {
-    expect(getStatusColor('active')).toBe('green')
-    expect(getStatusColor('inactive')).toBe('gray')
-    expect(getStatusColor('new')).toBe('blue')
-  })
-})
+    expect(getStatusColor('active')).toBe('green');
+    expect(getStatusColor('inactive')).toBe('gray');
+    expect(getStatusColor('new')).toBe('blue');
+  });
+});
 
 describe('StringFormatter', () => {
   it('formats strings correctly', () => {
-    expect(capitalizeFirst('hello')).toBe('Hello')
-    expect(trimAndFormat('  hello  ', true)).toBe('HELLO')
-  })
-})
+    expect(capitalizeFirst('hello')).toBe('Hello');
+    expect(trimAndFormat('  hello  ', true)).toBe('HELLO');
+  });
+});
 
 describe('getFirstElement', () => {
   it('returns first element or undefined', () => {
-    expect(getFirstElement([1, 2, 3])).toBe(1)
-    expect(getFirstElement([])).toBeUndefined()
-  })
-})
+    expect(getFirstElement([1, 2, 3])).toBe(1);
+    expect(getFirstElement([])).toBeUndefined();
+  });
+});
 
 describe('findById', () => {
   it('finds object by id', () => {
-    expect(findById([{ id: 1, name: 'A' }], 1)).toEqual({ id: 1, name: 'A' })
-  })
-})
+    expect(findById([{ id: 1, name: 'A' }], 1)).toEqual({ id: 1, name: 'A' });
+  });
+});
 
 describe('csvToJSON', () => {
   it('should convert valid CSV array to JSON array', () => {
-    const input = ["p1;p2;p3", "1;A;b", "2;B;v"]
+    const input = ["p1;p2;p3", "1;A;b", "2;B;v"];
     expect(csvToJSON(input, ';')).toEqual([
       { p1: '1', p2: 'A', p3: 'b' },
       { p1: '2', p2: 'B', p3: 'v' }
-    ])
-  })
+    ]);
+  });
 
   it('should handle empty input array', () => {
-    expect(csvToJSON([], ';')).toEqual([])
-  })
+    expect(csvToJSON([], ';')).toEqual([]);
+  });
 
   it('should throw an error if number of columns is inconsistent', () => {
-    const input = ["p1;p2;p3", "1;A", "2;B;v;d"]
-    expect(() => csvToJSON(input, ';')).toThrow(/Несоответствие количества столбцов/)
-  })
-})
+    const input = ["p1;p2;p3", "1;A", "2;B;v;d"];
+    expect(() => csvToJSON(input, ';')).toThrow(/Несоответствие количества столбцов/);
+  });
+});
 
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
   writeFile: vi.fn(),
-}))
+}));
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises';
 
 describe('formatCSVFileToJSONFile', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('should read file, convert CSV to JSON, and write to output file', async () => {
-    vi.mocked(readFile).mockResolvedValue("id;name\n1;Alice\n2;Bob")
+    vi.mocked(readFile).mockResolvedValue("id;name\n1;Alice\n2;Bob");
 
-    await formatCSVFileToJSONFile('input.csv', 'output.json', ';')
+    await formatCSVFileToJSONFile('input.csv', 'output.json', ';');
 
-    expect(readFile).toHaveBeenCalledWith('input.csv', { encoding: 'utf-8' })
+    expect(readFile).toHaveBeenCalledWith('input.csv', { encoding: 'utf-8' });
     expect(writeFile).toHaveBeenCalledWith(
       'output.json',
       JSON.stringify([{ id: '1', name: 'Alice' }, { id: '2', name: 'Bob' }], null, 2),
       { encoding: 'utf-8' }
-    )
-  })
+    );
+  });
 
   it('should throw an error if readFile fails', async () => {
-    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
+    vi.mocked(readFile).mockRejectedValue(new Error('File not found'));
 
     await expect(formatCSVFileToJSONFile('bad.csv', 'out.json', ';'))
       .rejects
-      .toThrow(/Ошибка при обработке файла/)
-  })
-})
+      .toThrow(/Ошибка при обработке файла/);
+  });
+});
 
-describe('lab4 - query pipeline', () => {
+describe('lab5 - type system for query pipeline', () => {
   type User = {
     id: number;
     name: string;
@@ -132,6 +138,80 @@ describe('lab4 - query pipeline', () => {
     { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
     { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" },
   ];
+
+  describe('Type system - operation order validation', () => {
+    it('should validate correct order: where -> groupBy -> having -> sort', () => {
+      expectTypeOf(where).toMatchTypeOf<WhereStep<User>>();
+      expectTypeOf(groupBy).toMatchTypeOf<GroupByStep<User>>();
+      expectTypeOf(having).toMatchTypeOf<HavingStep<User>>();
+      expectTypeOf(sort).toMatchTypeOf<SortStep<User>>();
+    });
+
+    it('should allow all where operations first', () => {
+      const validQuery = query<User>(
+        where("name", "John"),
+        where("surname", "Doe"),
+        groupBy("city"),
+        having(group => group.items.length > 1),
+        sort("age")
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow where then sort', () => {
+      const validQuery = query<User>(
+        where("name", "John"),
+        where("surname", "Doe"),
+        sort("age"),
+        sort("name")
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow groupBy then having', () => {
+      const validQuery = query<User>(
+        groupBy("city"),
+        having(group => group.items.length > 1)
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow only where operations', () => {
+      const validQuery = query<User>(
+        where("name", "John"),
+        where("surname", "Doe")
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow only groupBy operations', () => {
+      const validQuery = query<User>(
+        groupBy("city"),
+        groupBy("age")
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow only having operations', () => {
+      const validQuery = query<User>(
+        having(group => group.items.length > 1)
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow only sort operations', () => {
+      const validQuery = query<User>(
+        sort("age"),
+        sort("name")
+      );
+      expectTypeOf(validQuery).toBeFunction();
+    });
+
+    it('should allow empty query', () => {
+      const validQuery = query<User>();
+      expectTypeOf(validQuery).toBeFunction();
+    });
+  });
 
   describe('where', () => {
     it('should filter by exact match', () => {
@@ -262,7 +342,7 @@ describe('lab4 - query pipeline', () => {
       expect(result[1].items).toHaveLength(2);
     });
 
-    it('should combine all operations', () => {
+    it('should combine all operations in correct order', () => {
       const pipeline = query<User>(
         where("surname", "Doe"),
         groupBy("city"),
