@@ -1,19 +1,15 @@
-image: node:20
-
 stages:
-  - test
+  - build
 
-cache:
-  paths:
-    - node_modules/
-
-before_script:
-  - npm install
-
-test:
-  stage: test
+build:
+  image: node:20-alpine
+  stage: build
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
   script:
+    - npm ci
+    - npm run build
     - npm run test
-  only:
-    - lab1
-    - lab3
+    - npm run lint
