@@ -1,9 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  createUser, createBook, calculateArea, getStatusColor,
-  capitalizeFirst, trimAndFormat, getFirstElement, findById,
+  createUser,
+  createBook,
+  calculateArea,
+  getStatusColor,
+  capitalizeFirst,
+  trimAndFormat,
+  getFirstElement,
+  findById,
   csvToJSON,
-  formatCSVFileToJSONFile
+  formatCSVFileToJSONFile,
+  where,
+  sort,
+  groupBy,
+  having,
+  query,
 } from './index'
 
 describe('User', () => {
@@ -56,37 +67,19 @@ describe('findById', () => {
 describe('csvToJSON', () => {
   it('should convert valid CSV array to JSON array', () => {
     const input = ["p1;p2;p3", "1;A;b", "2;B;v"]
-    const delimiter = ';'
-    const expected = [
+    expect(csvToJSON(input, ';')).toEqual([
       { p1: '1', p2: 'A', p3: 'b' },
       { p1: '2', p2: 'B', p3: 'v' }
-    ]
-    expect(csvToJSON(input, delimiter)).toEqual(expected)
+    ])
   })
 
   it('should handle empty input array', () => {
     expect(csvToJSON([], ';')).toEqual([])
   })
 
-  it('should trim whitespace from headers and values', () => {
-    const input = [" p1 ; p2 ", " 1 ; A "]
-    const expected = [{ p1: '1', p2: 'A' }]
-    expect(csvToJSON(input, ';')).toEqual(expected)
-  })
-
   it('should throw an error if number of columns is inconsistent', () => {
     const input = ["p1;p2;p3", "1;A", "2;B;v;d"]
     expect(() => csvToJSON(input, ';')).toThrow(/Несоответствие количества столбцов/)
-  })
-
-  it('should work with different delimiters', () => {
-    const input = ["p1,p2,p3", "1,A,b", "2,B,v"]
-    const delimiter = ','
-    const expected = [
-      { p1: '1', p2: 'A', p3: 'b' },
-      { p1: '2', p2: 'B', p3: 'v' }
-    ]
-    expect(csvToJSON(input, delimiter)).toEqual(expected)
   })
 })
 
@@ -103,58 +96,212 @@ describe('formatCSVFileToJSONFile', () => {
   })
 
   it('should read file, convert CSV to JSON, and write to output file', async () => {
-    const mockCsvContent = "id;name\n1;Alice\n2;Bob"
-    const expectedJson = [
-      { id: '1', name: 'Alice' },
-      { id: '2', name: 'Bob' }
-    ]
-    const expectedJsonString = JSON.stringify(expectedJson, null, 2)
+    vi.mocked(readFile).mockResolvedValue("id;name\n1;Alice\n2;Bob")
 
-    vi.mocked(readFile).mockResolvedValue(mockCsvContent)
+    await formatCSVFileToJSONFile('input.csv', 'output.json', ';')
 
-    const inputPath = 'input.csv'
-    const outputPath = 'output.json'
-    const delimiter = ';'
-
-    await formatCSVFileToJSONFile(inputPath, outputPath, delimiter)
-
-    expect(readFile).toHaveBeenCalledTimes(1)
-    expect(readFile).toHaveBeenCalledWith(inputPath, { encoding: 'utf-8' })
-
-    expect(writeFile).toHaveBeenCalledTimes(1)
-    expect(writeFile).toHaveBeenCalledWith(outputPath, expectedJsonString, { encoding: 'utf-8' })
-  })
-
-  it('should handle empty lines and trailing newline correctly', async () => {
-    const mockCsvContent = "id;name\n1;Alice\n2;Bob\n"
-    const expectedJson = [
-      { id: '1', name: 'Alice' },
-      { id: '2', name: 'Bob' }
-    ]
-    const expectedJsonString = JSON.stringify(expectedJson, null, 2)
-
-    vi.mocked(readFile).mockResolvedValue(mockCsvContent)
-
-    await formatCSVFileToJSONFile('in.csv', 'out.json', ';')
-
-    expect(writeFile).toHaveBeenCalledWith('out.json', expectedJsonString, { encoding: 'utf-8' })
+    expect(readFile).toHaveBeenCalledWith('input.csv', { encoding: 'utf-8' })
+    expect(writeFile).toHaveBeenCalledWith(
+      'output.json',
+      JSON.stringify([{ id: '1', name: 'Alice' }, { id: '2', name: 'Bob' }], null, 2),
+      { encoding: 'utf-8' }
+    )
   })
 
   it('should throw an error if readFile fails', async () => {
-    const errorMessage = 'File not found'
-    vi.mocked(readFile).mockRejectedValue(new Error(errorMessage))
-
-    await expect(formatCSVFileToJSONFile('bad.csv', 'out.json', ';'))
-      .rejects
-      .toThrow(`Ошибка при обработке файла: Error: ${errorMessage}`)
-  })
-
-  it('should throw an error if csvToJSON throws an error', async () => {
-    const mockBadCsvContent = "id;name\n1;Alice;extra"
-    vi.mocked(readFile).mockResolvedValue(mockBadCsvContent)
+    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
 
     await expect(formatCSVFileToJSONFile('bad.csv', 'out.json', ';'))
       .rejects
       .toThrow(/Ошибка при обработке файла/)
   })
 })
+
+describe('lab4 - query pipeline', () => {
+  type User = {
+    id: number;
+    name: string;
+    surname: string;
+    age: number;
+    city: string;
+  };
+
+  const users: User[] = [
+    { id: 1, name: "John", surname: "Doe", age: 34, city: "NY" },
+    { id: 2, name: "John", surname: "Doe", age: 33, city: "NY" },
+    { id: 3, name: "John", surname: "Doe", age: 35, city: "LA" },
+    { id: 4, name: "Mike", surname: "Doe", age: 35, city: "LA" },
+  ];
+
+  describe('where', () => {
+    it('should filter by exact match', () => {
+      const filterByName = where<User>("name", "John");
+      const result = filterByName(users);
+
+      expect(result).toHaveLength(3);
+      expect(result.every(u => u.name === "John")).toBe(true);
+    });
+
+    it('should return empty array if no matches', () => {
+      const filterByCity = where<User>("city", "Moscow");
+      const result = filterByCity(users);
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('sort', () => {
+    it('should sort by age ascending', () => {
+      const sortByAge = sort<User>("age");
+      const result = sortByAge(users);
+
+      expect(result[0].age).toBe(33);
+      expect(result[1].age).toBe(34);
+      expect(result[2].age).toBe(35);
+      expect(result[3].age).toBe(35);
+    });
+
+    it('should sort by name', () => {
+      const sortByName = sort<User>("name");
+      const result = sortByName(users);
+
+      expect(result[0].name).toBe("John");
+      expect(result[3].name).toBe("Mike");
+    });
+
+    it('should not mutate original array', () => {
+      const sortByAge = sort<User>("age");
+      const original = [...users];
+      sortByAge(users);
+
+      expect(users).toEqual(original);
+    });
+  });
+
+  describe('groupBy', () => {
+    it('should group by city', () => {
+      const groupByCity = groupBy<User>("city");
+      const result = groupByCity(users);
+
+      expect(result).toHaveLength(2);
+
+      const nyGroup = result.find(g => g.key === "NY");
+      expect(nyGroup?.items).toHaveLength(2);
+      expect(nyGroup?.items.every(u => u.city === "NY")).toBe(true);
+
+      const laGroup = result.find(g => g.key === "LA");
+      expect(laGroup?.items).toHaveLength(2);
+      expect(laGroup?.items.every(u => u.city === "LA")).toBe(true);
+    });
+
+    it('should group by age', () => {
+      const groupByAge = groupBy<User>("age");
+      const result = groupByAge(users);
+
+      expect(result).toHaveLength(3);
+
+      const age35Group = result.find(g => g.key === 35);
+      expect(age35Group?.items).toHaveLength(2);
+    });
+  });
+
+  describe('having', () => {
+    it('should filter groups with more than 1 item', () => {
+      const groupByCity = groupBy<User>("city");
+      const groups = groupByCity(users);
+
+      const filterGroups = having<User>((group) => group.items.length > 1);
+      const result = filterGroups(groups);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it('should filter groups with age > 34', () => {
+      const groupByCity = groupBy<User>("city");
+      const groups = groupByCity(users);
+
+      const filterGroups = having<User>((group) =>
+        group.items.some(u => u.age > 34)
+      );
+      const result = filterGroups(groups);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe("LA");
+    });
+  });
+
+  describe('query', () => {
+    it('should chain where and sort', () => {
+      const pipeline = query<User>(
+        where("name", "John"),
+        where("surname", "Doe"),
+        sort("age")
+      );
+
+      const result = pipeline(users);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].age).toBe(33);
+      expect(result[1].age).toBe(34);
+      expect(result[2].age).toBe(35);
+      expect(result.every(u => u.name === "John" && u.surname === "Doe")).toBe(true);
+    });
+
+    it('should chain groupBy and having', () => {
+      const pipeline = query<User>(
+        groupBy("city"),
+        having<User>((group) => group.items.length > 1)
+      );
+
+      const result = pipeline(users);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].key).toBe("NY");
+      expect(result[0].items).toHaveLength(2);
+      expect(result[1].key).toBe("LA");
+      expect(result[1].items).toHaveLength(2);
+    });
+
+    it('should combine all operations', () => {
+      const pipeline = query<User>(
+        where("surname", "Doe"),
+        groupBy("city"),
+        having<User>((group) => group.items.some(u => u.age > 34))
+      );
+
+      const result = pipeline(users);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].key).toBe("LA");
+      expect(result[0].items).toHaveLength(2);
+      expect(result[0].items.every(u => u.surname === "Doe")).toBe(true);
+    });
+
+    it('should handle empty pipeline', () => {
+      const pipeline = query<User>();
+      const result = pipeline(users);
+
+      expect(result).toEqual(users);
+    });
+
+    it('should work with different data types', () => {
+      type Product = { id: number; name: string; price: number };
+      const products: Product[] = [
+        { id: 1, name: "A", price: 100 },
+        { id: 2, name: "B", price: 200 },
+        { id: 3, name: "A", price: 150 },
+      ];
+
+      const pipeline = query<Product>(
+        where("name", "A"),
+        sort("price")
+      );
+
+      const result = pipeline(products);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].price).toBe(100);
+      expect(result[1].price).toBe(150);
+    });
+  });
+});

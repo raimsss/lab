@@ -140,107 +140,59 @@ export async function formatCSVFileToJSONFile(
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('\n=== ДЕМОНСТРАЦИЯ РАБОТЫ ФУНКЦИЙ ===\n')
+export type Transform<T> = (data: T[]) => T[];
 
-  console.log('1. СОЗДАНИЕ ПОЛЬЗОВАТЕЛЯ:')
-  const user1 = createUser(1, 'Иван')
-  const user2 = createUser(2, 'Мария', 'maria@example.com', false)
-  console.log('  user1 (isActive по умолчанию):', user1)
-  console.log('  user2 (isActive = false):', user2)
-  console.log()
+export type Where<T> = <K extends keyof T>(key: K, value: T[K]) => Transform<T>;
 
-  console.log('2. СОЗДАНИЕ КНИГИ:')
-  const book1 = createBook({
-    title: 'Война и мир',
-    author: 'Лев Толстой',
-    genre: 'fiction'
-  })
-  const book2 = createBook({
-    title: 'История России',
-    author: 'Историк',
-    year: 2023,
-    genre: 'non-fiction'
-  })
-  console.log('  book1 (без года):', book1)
-  console.log('  book2 (с годом):', book2)
-  console.log()
+export type Sort<T> = <K extends keyof T>(key: K) => Transform<T>;
 
-  console.log('3. ВЫЧИСЛЕНИЕ ПЛОЩАДИ:')
-  const circleArea = calculateArea('circle', 5)
-  const squareArea = calculateArea('square', 4)
-  console.log(`  Площадь круга (радиус 5): ${circleArea.toFixed(2)}`)
-  console.log(`  Площадь квадрата (сторона 4): ${squareArea}`)
-  console.log()
+export type Group<T, K extends keyof T> = {
+  key: T[K];
+  items: T[];
+};
 
-  console.log('4. ЦВЕТА СТАТУСОВ:')
-  console.log(`  active -> ${getStatusColor('active')}`)
-  console.log(`  inactive -> ${getStatusColor('inactive')}`)
-  console.log(`  new -> ${getStatusColor('new')}`)
-  console.log()
+export type GroupBy<T> = <K extends keyof T>(key: K) => Transform<Group<T, K>>;
 
-  console.log('5. ФОРМАТИРОВАНИЕ СТРОК:')
-  const testStr = '  привет мир  '
-  console.log(`  Исходная строка: "${testStr}"`)
-  console.log(`  capitalizeFirst: "${capitalizeFirst('hello')}"`)
-  console.log(`  trimAndFormat: "${trimAndFormat(testStr, false)}"`)
-  console.log(`  trimAndFormat + uppercase: "${trimAndFormat(testStr, true)}"`)
-  console.log()
+export type GroupTransform<T, K extends keyof T> = (groups: Group<T, K>[]) => Group<T, K>[];
 
-  console.log('6. ПЕРВЫЙ ЭЛЕМЕНТ МАССИВА:')
-  const numbers = [10, 20, 30, 40, 50]
-  const emptyArray: number[] = []
-  console.log(`  Массив [10, 20, 30, 40, 50] -> первый элемент: ${getFirstElement(numbers)}`)
-  console.log(`  Пустой массив -> первый элемент: ${getFirstElement(emptyArray)}`)
-  console.log()
+export type Having<T> = <K extends keyof T>(
+  predicate: (group: Group<T, K>) => boolean
+) => GroupTransform<T, K>;
 
-  console.log('7. ПОИСК ПО ID:')
-  const items = [
-    { id: 1, name: 'Товар 1', price: 100 },
-    { id: 2, name: 'Товар 2', price: 200 },
-    { id: 3, name: 'Товар 3', price: 300 }
-  ]
-  const foundItem = findById(items, 2)
-  const notFoundItem = findById(items, 5)
-  console.log('  Товары:', items)
-  console.log('  Поиск id=2:', foundItem)
-  console.log('  Поиск id=5:', notFoundItem)
-  console.log()
-
-  console.log('8. ДОПОЛНИТЕЛЬНЫЕ ПРИМЕРЫ:')
-  const users = [
-    createUser(1, 'Анна', 'anna@mail.com'),
-    createUser(2, 'Петр', 'petr@mail.com', false),
-    createUser(3, 'Елена')
-  ]
-  console.log('  Все пользователи:', users)
-  const activeUsers = users.filter(user => user.isActive)
-  console.log('  Активные пользователи:', activeUsers)
-  const fictionBook = createBook({
-    title: 'Преступление и наказание',
-    author: 'Достоевский',
-    genre: 'fiction',
-    year: 1866
-  })
-  console.log('  Книга в жанре fiction:', fictionBook)
-
-  console.log('\n=== ДЕМОНСТРАЦИЯ НОВЫХ ФУНКЦИЙ LAB3 ===\n')
-
-  console.log('1. csvToJSON:')
-  const csvData = ["p1;p2;p3;p4", "1;A;b;c", "2;B;v;d"]
-  const jsonResult = csvToJSON(csvData, ';')
-  console.log('  Входные данные:', csvData)
-  console.log('  Результат:', jsonResult)
-  console.log()
-
-  console.log('2. csvToJSON (ошибка):')
-  try {
-    const badCsvData = ["p1;p2;p3", "1;A;b;c"]
-    csvToJSON(badCsvData, ';')
-  } catch (e: any) {
-    console.log('  Ошибка поймана:', e.message)
-  }
-  console.log()
-
-  console.log('\n=== КОНЕЦ ДЕМОНСТРАЦИИ ===\n')
+export function query<T>(...steps: Array<Transform<T> | GroupTransform<T, any>>): Transform<T> {
+  return (data: T[]): T[] => {
+    return steps.reduce((acc, step) => step(acc as any), data as any) as T[];
+  };
 }
+
+export const where: Where<any> = (key, value) => (data) => {
+  return data.filter((item) => item[key] === value);
+};
+
+export const sort: Sort<any> = (key) => (data) => {
+  return [...data].sort((a, b) => {
+    const av = a[key];
+    const bv = b[key];
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+    return 0;
+  });
+};
+
+export const groupBy: GroupBy<any> = (key) => (data) => {
+  const groups: Record<string, Group<any, any>> = {};
+
+  for (const item of data) {
+    const groupKey = String(item[key]);
+    if (!groups[groupKey]) {
+      groups[groupKey] = { key: item[key], items: [] };
+    }
+    groups[groupKey].items.push(item);
+  }
+
+  return Object.values(groups);
+};
+
+export const having: Having<any> = (predicate) => (groups) => {
+  return groups.filter(predicate);
+};
