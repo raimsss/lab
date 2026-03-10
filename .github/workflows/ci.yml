@@ -1,0 +1,34 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ master, main, lab* ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './lab1/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./lab1
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: ./lab1
+        run: npm run build
+
+      - name: Run tests
+        working-directory: ./lab1
+        run: npm run test
